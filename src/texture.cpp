@@ -6,9 +6,47 @@
 
 namespace CGL {
 
+  Color lerp(float x, Color v0, Color v1) {
+    float r = v0.r + x * (v1.r - v0.r);
+    float g = v0.g + x * (v1.g - v0.g);
+    float b = v0.b + x * (v1.b - v0.b);
+    return Color(r, g, b);
+    }
+
   Color Texture::sample(const SampleParams& sp) {
     // TODO: Task 6: Fill this in.
-
+    if (sp.lsm == L_ZERO) {
+      if (sp.psm == P_NEAREST) {
+        return sample_nearest(sp.p_uv);
+      } else {
+        return sample_bilinear(sp.p_uv);
+      }
+    } else if (sp.lsm == L_NEAREST) {
+//      cout << "here" << endl;
+      float level = round(get_level(sp));
+//      cout << level;
+      if (sp.psm == P_NEAREST) {
+        return sample_nearest(sp.p_uv, level);
+      } else {
+        return sample_bilinear(sp.p_uv, level);
+      }
+    } else {
+      float level = get_level(sp);
+      
+      if (floorf(level) == level) {
+        if (sp.psm == P_NEAREST) {
+          return sample_nearest(sp.p_uv, (int) level);
+        } else {
+          return sample_bilinear(sp.p_uv, (int) level);
+        }
+      }
+      
+      if (sp.psm == P_NEAREST) {
+        return lerp(level - floor(level), sample_nearest(sp.p_uv, floor(level)), sample_nearest(sp.p_uv, ceil(level)));
+      } else {
+        return lerp(level - floor(level), sample_bilinear(sp.p_uv, floor(level)), sample_bilinear(sp.p_uv, ceil(level)));
+      }
+    }
 
 // return magenta for invalid level
     return Color(1, 0, 1);
@@ -16,8 +54,14 @@ namespace CGL {
 
   float Texture::get_level(const SampleParams& sp) {
     // TODO: Task 6: Fill this in.
+    float u0 = sp.p_dx_uv[0] * (width - 1);
+    float v0 = sp.p_dx_uv[1] * (height - 1);
+    float u1 = sp.p_dy_uv[0] * (width - 1);
+    float v1 = sp.p_dy_uv[1] * (height - 1);
+    
+    float L = max(sqrt(pow(u0, 2) + pow(v0, 2)), sqrt(pow(u1, 2) + pow(v1, 2)));
 
-
+    return min(max((float) 0, log2(L)), (float) mipmap.size());
 
     return 0;
   }
@@ -26,12 +70,19 @@ namespace CGL {
     return Color(&texels[tx * 3 + ty * width * 3]);
   }
 
+  
+
   Color Texture::sample_nearest(Vector2D uv, int level) {
     // TODO: Task 5: Fill this in.
     auto& mip = mipmap[level];
-
-
-
+    uv[0] *= (mip.width - 1);
+    uv[1] *= (mip.height - 1);
+    
+    uv[0] = round(uv[0]);
+    uv[1] = round(uv[1]);
+    
+    return mip.get_texel(uv[0], uv[1]);
+    
 
     // return magenta for invalid level
     return Color(1, 0, 1);
@@ -40,8 +91,17 @@ namespace CGL {
   Color Texture::sample_bilinear(Vector2D uv, int level) {
     // TODO: Task 5: Fill this in.
     auto& mip = mipmap[level];
-
-
+    
+    uv[0] *= (mip.width - 1);
+    uv[1] *= (mip.height - 1);
+    
+    Color p1 = mip.get_texel(floor(uv[0]), floor(uv[1]));
+    Color p2 = mip.get_texel(ceil(uv[0]), floor(uv[1]));
+    
+    Color p3 = mip.get_texel(floor(uv[0]), ceil(uv[1]));
+    Color p4 = mip.get_texel(ceil(uv[0]), ceil(uv[1]));
+    
+    return lerp(uv[1] - floor(uv[1]), lerp(uv[0] - floor(uv[0]), p1, p2), lerp(uv[0] - floor(uv[0]), p3, p4));
 
 
     // return magenta for invalid level

@@ -25,42 +25,33 @@
 
 <h1 align="middle">CS 184/284A: Computer Graphics and Imaging, Spring 2024</h1>
 <h1 align="middle">Homework 1: Rasterizer</h1>
-<h2 align="middle">YOUR NAME</h2>
+<h2 align="middle">Justin Wang and Aidan Sussman</h2>
 
 <br><br>
 
 <div>
 
 <h2 align="middle">Overview</h2>
-<p>Give a high-level overview of what you implemented in this homework Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.</p>
+<p>We implemented a rasterizer capable of rasterizing points, lines, and triangles with colors or textures. The rasterizer offers supersampling, bilinear pixel sampling, and mipmaps / level sampling all to help alleviate anti-aliasing. This homework provided an interesting and intuitive way to examine how screens and images are actually rendered, how common aliasing is, and methods for anti-aliasing.</p>
 
 <h2 align="middle">Section I: Rasterization</h2>
 
 <h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
 
-<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
+<p>We rasterize triangles by checking pixels to see if they located above or on all three edges of the triangle (which means that it is located inside of the triangle). Pixels that are not on/above all three edges are not rendered.</p>
+<p>We can check the winding order of the vertices by checking if the third point is above or below the line formed by the first two, and swapping the points to ensure consistency.</p>
+<p>Our algorithm checks every pixel sample within the bounding box of the triangle and is no worse. This is accomplished by taking the minimum and maximum X and Y values of the three vertices and looping through the bounding box created.</p>
 
 <div align="middle">
   <table style="width=100%">
     <tr>
       <td>
-        <img src="images/image1.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="images/svg4.png" align="middle" width="500px"/>
+        <figcaption align="middle">Rendered triangles of various colors and shapes</figcaption>
       </td>
       <td>
-        <img src="images/image2.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
-      </td>
-    </tr>
-    <br>
-    <tr>
-      <td>
-        <img src="images/image3.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
-      </td>
-      <td>
-        <img src="images/image4.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="images/svg4_aliasing.png" align="middle" width="500px"/>
+        <figcaption align="middle">Aliasing ("Jaggies") on the edges of the thinner triangles</figcaption>
       </td>
     </tr>
   </table>
@@ -69,28 +60,122 @@
 
 <h3 align="middle">Part 2: Antialiasing triangles</h3>
 
+<p>Our supersampling algorithm takes <b>sample_rate</b> samples per pixel (spaced in a grid pattern) and stores the correct color of the sample in the <b>sample_buffer</b>, which has been expanded to store <b>width * height * sample_rate</b> elements. We then average the samples for each pixel to obtain the final color of the pixel.</p>
+<p>Supersampling is useful, as it allows pixels to take on intermediary colors, easing the transition between color changes. It is a form of anti-aliasing and reduces the jaggies as seen above.</p>
+<p>The function to render points and lines had to be modified to fill all sample points for a pixel with the desired color. Otherwise, the color would have been "diluted" when averaging the sample points later.</p>
+<p>Supersampling works as antialiasing, as it approximates a one-pixel box filter, which attenuates frequencies with a period less than 1 pixel-width.</p>
 
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task2.png" align="middle" width="500px"/>
+        <figcaption align="middle">Sample rate of 1 (no supersampling), clear aliasing and jaggies</figcaption>
+      </td>
+      <td>
+        <img src="images/task2_1.png" align="middle" width="500px"/>
+        <figcaption align="middle">Close-up of aliasing without supersampling; pixels are either inside or outside the triangle, and take on either red or white</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/task2_4.png" align="middle" width="500px"/>
+        <figcaption align="middle">Close-up with sample_rate=4; the edges start to take on a blurred look</figcaption>
+      </td>
+      <td>
+        <img src="images/task2_16.png" align="middle" width="500px"/>
+        <figcaption align="middle">Close-up with sample_rate=16; the edges take on an even more gradual gradient, as there are more possible color combinations with 16 sample points</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 <h3 align="middle">Part 3: Transforms</h3>
 
+<div align="middle">
+  <img src="images/task3.png" align="middle" width="500px"/>
+  <figcaption align="middle">Cubeman going to a job interview</figcaption>
+</div>
 
 
 <h2 align="middle">Section II: Sampling</h2>
 
 <h3 align="middle">Part 4: Barycentric coordinates</h3>
+<p>Barycentric coordinates is a coordinate system that allows for smooth interpolation between the three vertices of a triangle. This can be useful for colors, textures, normal vectors, etc.</p>
 
+<div align="middle">
+  <img src="images/task4_1.png" align="middle" width="500px"/>
+  <figcaption align="middle">Color triangle with barycentric coordinates</figcaption>
+</div>
+
+<p>The only colors defined in the triangle above are on the three vertices, but barycentric coordinates allows us to interpolate between the colors and generate a color for every point inside the triangle, forming a smooth gradient.</p>
+
+<div align="middle">
+  <img src="images/task4.png" align="middle" width="500px"/>
+  <figcaption align="middle">Color wheel</figcaption>
+</div>
 
 <h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
+<p>When taking samples for a pixel, if we decide to assign the color based on a texture map (as opposed to barycentric interpolation or strict assignment), we need to sample the texture, as the pixel sample will not always line up with a texture pixel. We do this by calculating the relative/barycentric coordinates of our pixel sample point within the triangle and applying it to the same relative location of the texture triangle. From there, we can either choose the nearest texture pixel or calculate a lerp of the 4 nearest texels (bilinear).</p>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task5_nearest_1.png" align="middle" width="500px"/>
+        <figcaption align="middle">Nearest sampling with sample rate 1</figcaption>
+      </td>
+      <td>
+        <img src="images/task5_bilinear_1.png" align="middle" width="500px"/>
+        <figcaption align="middle">Bilinear sampling with sample rate 1</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/task5_nearest_16.png" align="middle" width="500px"/>
+        <figcaption align="middle">Nearest sampling with sample rate 16</figcaption>
+      </td>
+      <td>
+        <img src="images/task5_bilinear_16.png" align="middle" width="500px"/>
+        <figcaption align="middle">Bilinear sampling with sample rate 16</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<p>The difference between nearest and bilinear sampling is most evident with a sample rate of 1. We are not supersampling, so pixels in high-frequency regions are aliasing. Bilinear sampling helps to alleviate this. The difference is not as noticable when the sample rate is 16, as the supersampling works as anti-aliasing for both.</p>
 
 
 <h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
-
-
-
-<h2 align="middle">Section III: Art Competition</h2>
-<p>If you are not participating in the optional art competition, don't worry about this section!</p>
-
-<h3 align="middle">Part 7: Draw something interesting!</h3>
+<p>It is difficult low-pass textures at the correct frequency, as one pixel can correspond to many texels and the shape can vary widely. Instead, we low-pass the texture to varying frequencies (levels) and choose the best level when rasterizing. We choose the best level by first calculating du/dx, dv/dx, du/dy, and dv/dy, which is the distance moved on the texture map after moving one pixel on the screen. We then take the log2 of the largest distance moved (either dx or dy) and restrict it to between the lowest and highest levels. We can then round to the nearest level or interpolate between the two levels it lies between.</p>
+<p>Bilinear pixel sampling (as opposed to nearest) is slower, as it requires 3 more texel reads, as well as lerping. Visually, it offers the least anti-aliasing between the 3 methods, but still noticable. </p>
+<p>Level sampling increases memory usage, as we need to store multiple levels of the texture map. Using level zero and nearest level decreases the speed minimally, as we are only reading from one level, whereas bilinear level interpolation is slower and requires two level accesses, as well as an interpolation. Visually, the anti-aliasing looks better, as we are actually filtering out the high frequencies that cause the aliasing.</p>
+<p>Supersampling reduces the speed drastically, as we are now sampling multiple times for every single pixel. Visually, it reduces anti-aliasing significantly.</p>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task6_1.png" align="middle" width="500px"/>
+        <figcaption align="middle">No anti-aliasing</figcaption>
+      </td>
+      <td>
+        <img src="images/task6_2.png" align="middle" width="500px"/>
+        <figcaption align="middle">Bilinear pixel sampling</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/task6_3.png" align="middle" width="500px"/>
+        <figcaption align="middle">Bilinear level sampling</figcaption>
+      </td>
+      <td>
+        <img src="images/task6_4.png" align="middle" width="500px"/>
+        <figcaption align="middle">Trilinear sampling with sample rate 16</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 </body>
 </html>
